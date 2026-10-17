@@ -1,0 +1,24 @@
+{
+  "name": "viewonce-photo-bot",
+  "version": "1.0.0",
+  "description": "Bot WhatsApp minimal (Baileys) dengan satu fitur: mengambil foto sekali lihat (view once)",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [
+    "whatsapp",
+    "baileys",
+    "view-once"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^7.0.0-rc.9",
+    "pino": "^9.0.0",
+    "qrcode-terminal": "^0.12.0"
+  }
+}

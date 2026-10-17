@@ -1,0 +1,18 @@
+/**
+ * Konfigurasi bot
+ */
+module.exports = {
+  // Prefix perintah, contoh: ,vv  atau  .vv
+  prefix: ',',
+
+  // Nama folder penyimpanan sesi login WhatsApp
+  sessionName: 'session',
+
+  // Hanya akun yang menjalankan bot (fromMe) dan nomor di bawah ini yang boleh memakai perintah.
+  // Isi tanpa tanda + dan spasi, contoh: '6281234567890'
+  ownerNumber: [],
+  onlyOwner: true,
+
+  // Nama perintah yang memicu fitur
+  commands: ['vv', 'viewonce', 'readvo', 'readviewonce']
+};
