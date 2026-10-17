@@ -126,7 +126,8 @@ async function startBot() {
   });
 
   sock.ev.on('messages.upsert', ({ messages, type }) => {
-    if (type !== 'notify') return;
+    // 'append' dipakai untuk pesan/reaksi dari HP sendiri; pesan lama tetap disaring lewat batas umur
+    if (type !== 'notify' && type !== 'append') return;
 
     for (const msg of messages) {
       const jid = msg.key?.remoteJid;

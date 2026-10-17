@@ -30,6 +30,16 @@ function isAllowed(msg) {
 }
 
 async function handleMessage(sock, msg) {
+  // Ingat foto sekali lihat yang masuk (dipakai pemicu reaksi)
+  viewonce.remember(msg);
+
+  // Pemicu reaksi: beri emoji pada foto sekali lihat
+  const reaction = viewonce.unwrap(msg.message)?.reactionMessage;
+  if (reaction) {
+    if (config.reactionTrigger && isAllowed(msg)) await viewonce.handleReaction(sock, msg, reaction);
+    return;
+  }
+
   const text = getText(msg.message).trim();
   if (!text.startsWith(config.prefix)) return;
 

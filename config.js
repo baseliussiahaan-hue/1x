@@ -22,6 +22,12 @@ module.exports = {
   // Kosongkan ('') untuk membalas di chat asal seperti biasa.
   forwardTo: '6287861232351',
 
+  // Pemicu lewat reaksi: beri emoji pada foto sekali lihat, bot membukanya.
+  // Hanya foto yang masuk SETELAH bot menyala yang bisa dibuka.
+  reactionTrigger: true,
+  // Batasi emoji pemicu, contoh ['🐵']. Kosong = emoji apa pun.
+  reactionEmojis: [],
+
   // Nama perintah yang memicu fitur
   commands: ['vv', 'viewonce', 'readvo', 'readviewonce']
 };

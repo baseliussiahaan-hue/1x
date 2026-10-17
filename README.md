@@ -6,6 +6,12 @@ Dipangkas dari [KnightBot-Mini](https://github.com/mruniquehacker/KnightBot-Mini
 
 ## Cara pakai
 
+Ada dua cara memicunya:
+
+**A. Reaksi (paling cepat):** tekan lama foto sekali lihat lalu beri reaksi emoji apa saja (atau emoji yang diatur di `reactionEmojis`). Hanya foto yang masuk setelah bot menyala yang bisa dibuka.
+
+**B. Perintah:**
+
 1. Balas (reply) foto sekali lihat dengan perintah:
 
    ```
@@ -43,6 +49,8 @@ Nomor juga bisa diisi lewat `pairingNumber` di `config.js` atau env `PAIRING_NUM
 | `ownerNumber` | Daftar nomor yang boleh memakai bot, tanpa `+`, mis. `['6281234567890']` |
 | `onlyOwner` | `true` = hanya akun bot + `ownerNumber`; `false` = semua orang |
 | `forwardTo` | Nomor tujuan hasil foto (kode negara, tanpa `+`). Kosong = balas di chat asal |
+| `reactionTrigger` | `true` = reaksi emoji pada foto sekali lihat memicu bot |
+| `reactionEmojis` | Batasi emoji pemicu, mis. `['🐵']`. Kosong = emoji apa pun |
 | `commands` | Daftar nama perintah yang memicu fitur |
 
 ## Catatan penting
