@@ -5,6 +5,10 @@ module.exports = {
   // Prefix perintah, contoh: ,vv  atau  .vv
   prefix: ',',
 
+  // Login tanpa QR: isi nomor WhatsApp-mu dengan kode negara (contoh '6281234567890').
+  // Kosong = bot akan menanyakan saat start, atau pakai QR kalau tidak diisi.
+  pairingNumber: '',
+
   // Nama folder penyimpanan sesi login WhatsApp
   sessionName: 'session',
 

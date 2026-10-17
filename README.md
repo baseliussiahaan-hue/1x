@@ -28,7 +28,12 @@ npm install
 node index.js
 ```
 
-Scan QR yang muncul di terminal lewat **WhatsApp > Perangkat Tertaut**. Sesi tersimpan di folder `session/`.
+Saat pertama dijalankan, bot menanyakan nomor WhatsApp-mu.
+
+- **Login dengan kode (disarankan, tanpa scan):** ketik nomor dengan kode negara, mis. `6281234567890`. Bot menampilkan kode 8 karakter. Di WhatsApp buka **Perangkat Tertaut > Tautkan Perangkat > Tautkan dengan nomor telepon saja**, lalu masukkan kodenya.
+- **Login dengan QR:** tekan Enter saja, lalu scan QR di terminal lewat **Perangkat Tertaut**.
+
+Nomor juga bisa diisi lewat `pairingNumber` di `config.js` atau env `PAIRING_NUMBER`. Sesi tersimpan di folder `session/`.
 
 ## Konfigurasi (`config.js`)
 
