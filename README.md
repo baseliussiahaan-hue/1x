@@ -13,7 +13,7 @@ Dipangkas dari [KnightBot-Mini](https://github.com/mruniquehacker/KnightBot-Mini
    ```
 
    Alias: `,viewonce`, `,readvo`, `,readviewonce`
-2. Bot mengirim ulang foto itu sebagai foto biasa beserta captionnya.
+2. Bot mengirim ulang foto itu sebagai foto biasa beserta captionnya, ke nomor di `forwardTo` (atau dibalas di chat asal jika kosong).
 
 Secara default hanya akun yang menjalankan bot (dan nomor di `ownerNumber`) yang bisa memakai perintah.
 
@@ -42,6 +42,7 @@ Nomor juga bisa diisi lewat `pairingNumber` di `config.js` atau env `PAIRING_NUM
 | `prefix` | Awalan perintah (default `,`) |
 | `ownerNumber` | Daftar nomor yang boleh memakai bot, tanpa `+`, mis. `['6281234567890']` |
 | `onlyOwner` | `true` = hanya akun bot + `ownerNumber`; `false` = semua orang |
+| `forwardTo` | Nomor tujuan hasil foto (kode negara, tanpa `+`). Kosong = balas di chat asal |
 | `commands` | Daftar nama perintah yang memicu fitur |
 
 ## Catatan penting

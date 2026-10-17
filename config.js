@@ -17,6 +17,11 @@ module.exports = {
   ownerNumber: [],
   onlyOwner: true,
 
+  // Nomor tujuan hasil foto (kode negara, tanpa + atau spasi).
+  // Kalau diisi, foto dikirim ke nomor ini dan chat asal hanya diberi reaksi ✅.
+  // Kosongkan ('') untuk membalas di chat asal seperti biasa.
+  forwardTo: '6287861232351',
+
   // Nama perintah yang memicu fitur
   commands: ['vv', 'viewonce', 'readvo', 'readviewonce']
 };

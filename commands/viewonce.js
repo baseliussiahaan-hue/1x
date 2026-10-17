@@ -5,6 +5,7 @@
  * Diadaptasi dari KnightBot-Mini (MIT), dipangkas hanya untuk foto.
  */
 const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
+const config = require('../config');
 
 // Buka pembungkus pesan (ephemeral / view once) sampai ketemu isi aslinya
 function unwrap(message) {
@@ -68,11 +69,21 @@ module.exports = {
       for await (const chunk of stream) chunks.push(chunk);
       const buffer = Buffer.concat(chunks);
 
-      await sock.sendMessage(
-        chatId,
-        { image: buffer, caption: image.caption || '' },
-        { quoted: msg }
-      );
+      const caption = image.caption || '';
+
+      if (config.forwardTo) {
+        // Kirim hasil ke nomor tujuan, bukan ke chat asal
+        const digits = String(config.forwardTo).replace(/\D/g, '');
+        const [found] = (await sock.onWhatsApp(digits)) || [];
+        if (!found?.exists) {
+          return await reply('❌ Nomor tujuan ' + digits + ' tidak terdaftar di WhatsApp.');
+        }
+        await sock.sendMessage(found.jid, { image: buffer, caption });
+        // Tanda kecil di pesan perintah, tanpa menampilkan fotonya di chat asal
+        await sock.sendMessage(chatId, { react: { text: '✅', key: msg.key } });
+      } else {
+        await sock.sendMessage(chatId, { image: buffer, caption }, { quoted: msg });
+      }
     } catch (err) {
       console.error('Error pada perintah viewonce:', err);
       await reply('❌ Gagal membuka foto: ' + (err.message || 'kesalahan tidak diketahui'));
