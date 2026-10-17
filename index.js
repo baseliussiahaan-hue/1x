@@ -10,12 +10,14 @@ const {
 } = require('@whiskeysockets/baileys');
 const pino = require('pino');
 const qrcode = require('qrcode-terminal');
+const QRCode = require('qrcode');
 const readline = require('readline');
 const fs = require('fs');
 const config = require('./config');
 const { handleMessage } = require('./handler');
 
 const MESSAGE_AGE_LIMIT = 5 * 60 * 1000; // abaikan pesan lebih tua dari 5 menit
+let authResets = 0; // berapa kali sesi dihapus otomatis karena 401
 const processed = new Set();
 setInterval(() => processed.clear(), 5 * 60 * 1000);
 
@@ -84,9 +86,13 @@ async function startBot() {
     } else if (qr) {
       console.log('\n📱 Scan QR ini lewat WhatsApp > Perangkat Tertaut:\n');
       qrcode.generate(qr, { small: true });
+      QRCode.toFile('qr.png', qr, { scale: 10, margin: 4 })
+        .then(() => console.log('🖼️  QR juga disimpan sebagai gambar: qr.png (buka lalu scan dari HP lain)'))
+        .catch(() => {});
     }
 
     if (connection === 'open') {
+      authResets = 0;
       console.log(`\n✅ Bot terhubung sebagai ${sock.user.id.split(':')[0]}`);
       console.log(`⚡ Prefix: ${config.prefix}  |  Perintah: ${config.commands.join(', ')}\n`);
     }
@@ -98,8 +104,14 @@ async function startBot() {
       if (shouldReconnect) {
         setTimeout(startBot, 3000);
       } else {
-        // 401 = sesi ditolak / logout dari HP. Hapus sesi rusak lalu mulai login dari awal.
-        console.log('⚠️ Sesi tidak valid (logout). Menghapus sesi lama dan memulai login ulang...');
+        // 401 = sesi ditolak / logout. Hapus sesi rusak dan coba login ulang, maksimal 1 kali.
+        if (authResets >= 1) {
+          console.log('❌ Login ditolak lagi (401). Berhenti supaya tidak membuat kode baru terus-menerus.');
+          console.log('   Cek: nomor sesuai akun WhatsApp di HP, pakai kode TERBARU, lalu jalankan ulang.');
+          process.exit(1);
+        }
+        authResets++;
+        console.log('⚠️ Sesi tidak valid (401). Menghapus sesi lama dan mengulang login sekali...');
         try {
           fs.rmSync(`./${config.sessionName}`, { recursive: true, force: true });
         } catch (err) {
