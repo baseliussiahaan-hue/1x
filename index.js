@@ -1,6 +1,9 @@
 /**
  * Titik masuk bot - koneksi WhatsApp via Baileys
  */
+// Hindari 'fetch failed' akibat IPv6 yang tidak tersedia/lambat pada jaringan tertentu
+try { require('dns').setDefaultResultOrder('ipv4first'); } catch (e) { /* Node lama */ }
+
 const {
   default: makeWASocket,
   useMultiFileAuthState,
