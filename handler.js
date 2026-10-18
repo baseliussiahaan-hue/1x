@@ -40,11 +40,12 @@ async function handleMessage(sock, msg) {
     return;
   }
 
-  const text = getText(msg.message).trim();
-  if (!text.startsWith(config.prefix)) return;
-
-  const command = text.slice(config.prefix.length).trim().split(/\s+/)[0].toLowerCase();
-  if (!config.commands.includes(command)) return;
+  const text = getText(msg.message).trim().replace(/\s+/g, ' ').toLowerCase();
+  const hasPrefix = text.startsWith(config.prefix);
+  // Tanpa prefix, command hanya aktif jika membalas pesan (reply).
+  if (!hasPrefix && !viewonce.getContextInfo?.(msg.message)?.quotedMessage) return;
+  const command = hasPrefix ? text.slice(config.prefix.length).trim() : text;
+  if (!config.commands.some((item) => String(item).toLowerCase() === command)) return;
 
   if (!isAllowed(msg)) return;
 
