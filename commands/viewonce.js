@@ -191,4 +191,4 @@ async function handleReaction(sock, msg, reaction) {
   }
 }
 
-module.exports = { name: 'viewonce', execute, handleReaction, remember, unwrap };
+module.exports = { name: 'viewonce', execute, handleReaction, remember, unwrap, getContextInfo };
