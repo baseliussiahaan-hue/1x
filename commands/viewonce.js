@@ -165,11 +165,6 @@ async function execute(sock, msg) {
 
     const buffer = await downloadImage(found.media);
     await out.sendPhoto(buffer, found.media.caption || '');
-
-    // Tanda kecil di pesan perintah (hanya jika hasil dikirim ke nomor lain)
-    if (out.target) {
-      await sock.sendMessage(chatId, { react: { text: '✅', key: msg.key } });
-    }
   } catch (err) {
     console.error('Error pada perintah viewonce:', err);
     await out.notify('❌ Gagal membuka foto: ' + describeError(err)).catch(() => {});
@@ -189,8 +184,7 @@ async function handleReaction(sock, msg, reaction) {
   try {
     const buffer = await downloadImage(image);
     await out.sendPhoto(buffer, image.caption || '');
-    // Tidak memberi reaksi balasan: akun yang sama hanya boleh punya satu reaksi per pesan,
-    // jadi reaksi ✅ akan menimpa reaksi yang kamu berikan.
+    // Tidak memberi reaksi balasan apa pun ke pesan/foto aslinya.
   } catch (err) {
     console.error('Error pada pemicu reaksi:', err);
     await out.notify('❌ Gagal membuka foto: ' + describeError(err)).catch(() => {});

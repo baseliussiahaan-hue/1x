@@ -6,9 +6,10 @@
  *
  * Pilih nomor menunya:
  *   1. Tambah akun   - isi id + nomor WhatsApp, langsung bisa dijalankan
- *   2. Hapus akun    - pilih dari daftar, folder sesinya juga bisa dihapus
- *   3. Jalankan semua akun
- *   4. Keluar
+ *   2. Edit akun     - ganti nomor pairing, prefix, atau tujuan forward akun yang sudah ada
+ *   3. Hapus akun    - pilih dari daftar, folder sesinya juga bisa dihapus
+ *   4. Jalankan semua akun
+ *   5. Keluar
  */
 const fs = require('fs');
 const path = require('path');
@@ -41,6 +42,7 @@ function printAccounts(accounts) {
   }
   accounts.forEach((a, i) => {
     const extra = [];
+    if (a.prefix !== undefined) extra.push(`prefix "${a.prefix}"`);
     if (a.forwardTo !== undefined) extra.push(`forward ke ${a.forwardTo || '(chat asal)'}`);
     console.log(`  ${i + 1}. ${a.id}  —  ${a.pairingNumber || '(login pakai QR)'}${extra.length ? '  [' + extra.join(', ') + ']' : ''}`);
   });
@@ -58,11 +60,14 @@ async function addAccount(accounts) {
   }
 
   const numberInput = await ask('Nomor WhatsApp akun ini, kode negara tanpa + atau spasi (kosongkan untuk login pakai QR): ');
-  const pairingNumber = normalizeNumber(numberInput);
+  const account = { id, pairingNumber: normalizeNumber(numberInput) };
 
-  const forwardInput = await ask('Kirim hasil foto ke nomor lain? (Enter = balas di chat asal, atau ketik nomornya): ');
-  const account = { id, pairingNumber };
-  if (forwardInput.trim()) account.forwardTo = normalizeNumber(forwardInput);
+  const prefixInput = (await ask('Prefix perintah khusus akun ini? (Enter = pakai default di config.js, mis. ","): ')).trim();
+  if (prefixInput) account.prefix = prefixInput;
+
+  const forwardInput = (await ask('Kirim hasil foto ke nomor lain? (Enter = pakai default config.js, "-" = balas di chat asal, atau ketik nomornya): ')).trim();
+  if (forwardInput === '-') account.forwardTo = '';
+  else if (forwardInput) account.forwardTo = normalizeNumber(forwardInput);
 
   accounts.push(account);
   saveAccounts(accounts);
@@ -78,21 +83,75 @@ async function addAccount(accounts) {
   return accounts;
 }
 
+function pickAccount(accounts, promptText) {
+  printAccounts(accounts);
+  return ask(promptText).then((pick) => {
+    pick = pick.trim();
+    if (!pick) return -1;
+    const idx = parseInt(pick, 10) - 1;
+    if (Number.isNaN(idx) || idx < 0 || idx >= accounts.length) {
+      console.log('Nomor tidak valid.');
+      return -1;
+    }
+    return idx;
+  });
+}
+
+async function editAccount(accounts) {
+  console.log('\n--- Edit akun ---');
+  if (accounts.length === 0) {
+    console.log('Belum ada akun untuk diedit.');
+    return accounts;
+  }
+  const idx = await pickAccount(accounts, 'Nomor akun yang mau diedit (Enter untuk batal): ');
+  if (idx === -1) return accounts;
+  const account = accounts[idx];
+
+  for (;;) {
+    console.log(`\n--- Edit akun "${account.id}" ---`);
+    console.log(`  1. Nomor pairing : ${account.pairingNumber || '(pakai QR)'}`);
+    console.log(`  2. Prefix        : ${account.prefix !== undefined ? account.prefix : '(default config.js)'}`);
+    console.log(`  3. Forward ke    : ${account.forwardTo !== undefined ? (account.forwardTo || '(chat asal)') : '(default config.js)'}`);
+    console.log('  4. Kembali ke menu utama');
+    const sub = (await ask('Mau ganti yang mana (1-4)? ')).trim();
+
+    if (sub === '1') {
+      const numberInput = await ask('Nomor WhatsApp baru, kode negara tanpa + atau spasi (kosongkan untuk login pakai QR): ');
+      account.pairingNumber = normalizeNumber(numberInput);
+      saveAccounts(accounts);
+      console.log('✅ Nomor pairing diperbarui. Kalau akun ini sudah pernah login, sesi lama tetap dipakai sampai dihapus.');
+    } else if (sub === '2') {
+      const prefixInput = (await ask('Prefix baru, mis. "," atau "." (Enter = pakai default di config.js): ')).trim();
+      if (prefixInput) account.prefix = prefixInput;
+      else delete account.prefix;
+      saveAccounts(accounts);
+      console.log('✅ Prefix diperbarui.');
+    } else if (sub === '3') {
+      const forwardInput = (await ask('Kirim hasil foto ke nomor lain? (Enter = pakai default config.js, "-" = balas di chat asal, atau ketik nomornya): ')).trim();
+      if (!forwardInput) delete account.forwardTo;
+      else if (forwardInput === '-') account.forwardTo = '';
+      else account.forwardTo = normalizeNumber(forwardInput);
+      saveAccounts(accounts);
+      console.log('✅ Tujuan forward diperbarui.');
+    } else if (sub === '4') {
+      break;
+    } else {
+      console.log('Pilihan tidak dikenal, ketik angka 1-4.');
+    }
+  }
+
+  console.log('(Kalau akun ini sedang berjalan, jalankan ulang lewat menu "Jalankan semua akun" agar perubahan dipakai.)');
+  return accounts;
+}
+
 async function removeAccount(accounts) {
   console.log('\n--- Hapus akun ---');
   if (accounts.length === 0) {
     console.log('Belum ada akun untuk dihapus.');
     return accounts;
   }
-  printAccounts(accounts);
-  const pick = (await ask('Nomor akun yang mau dihapus (Enter untuk batal): ')).trim();
-  if (!pick) return accounts;
-
-  const idx = parseInt(pick, 10) - 1;
-  if (Number.isNaN(idx) || idx < 0 || idx >= accounts.length) {
-    console.log('Nomor tidak valid.');
-    return accounts;
-  }
+  const idx = await pickAccount(accounts, 'Nomor akun yang mau dihapus (Enter untuk batal): ');
+  if (idx === -1) return accounts;
 
   const [removed] = accounts.splice(idx, 1);
   saveAccounts(accounts);
@@ -129,24 +188,27 @@ async function main() {
     console.log('\n=== Kelola Akun WhatsApp Bot ===');
     printAccounts(accounts);
     console.log('\n1. Tambah akun');
-    console.log('2. Hapus akun');
-    console.log('3. Jalankan semua akun');
-    console.log('4. Keluar');
-    const choice = (await ask('Pilih (1-4): ')).trim();
+    console.log('2. Edit akun (ganti nomor, prefix, forward)');
+    console.log('3. Hapus akun');
+    console.log('4. Jalankan semua akun');
+    console.log('5. Keluar');
+    const choice = (await ask('Pilih (1-5): ')).trim();
 
     if (choice === '1') {
       accounts = await addAccount(accounts);
     } else if (choice === '2') {
-      accounts = await removeAccount(accounts);
+      accounts = await editAccount(accounts);
     } else if (choice === '3') {
+      accounts = await removeAccount(accounts);
+    } else if (choice === '4') {
       await runAll(accounts);
       return;
-    } else if (choice === '4') {
+    } else if (choice === '5') {
       console.log('Sampai jumpa!');
       rl.close();
       return;
     } else {
-      console.log('Pilihan tidak dikenal, ketik angka 1-4.');
+      console.log('Pilihan tidak dikenal, ketik angka 1-5.');
     }
   }
 }

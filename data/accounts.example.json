@@ -6,6 +6,7 @@
   {
     "id": "akun2",
     "pairingNumber": "6289876543210",
+    "prefix": ".",
     "forwardTo": "6281234567890"
   }
 ]

@@ -28,6 +28,7 @@ if (process.env.OWNER_NUMBERS !== undefined) {
   config.ownerNumber = process.env.OWNER_NUMBERS.split(',').map((s) => s.trim()).filter(Boolean);
 }
 if (process.env.ONLY_OWNER !== undefined) config.onlyOwner = process.env.ONLY_OWNER !== 'false';
+if (process.env.PREFIX !== undefined) config.prefix = process.env.PREFIX;
 
 const { handleMessage } = require('./handler');
 
