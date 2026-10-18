@@ -17,6 +17,18 @@ const QRCode = require('qrcode');
 const readline = require('readline');
 const fs = require('fs');
 const config = require('./config');
+
+// Dukungan multi-akun: multi-start.js menjalankan satu proses per akun dan
+// mengisi env di bawah ini. Tanpa env ini, perilaku sama seperti satu akun biasa.
+const ACCOUNT_ID = process.env.ACCOUNT_ID || '';
+const logPrefix = ACCOUNT_ID ? `[${ACCOUNT_ID}] ` : '';
+const sessionDir = process.env.SESSION_DIR || `./${config.sessionName}`;
+if (process.env.FORWARD_TO !== undefined) config.forwardTo = process.env.FORWARD_TO;
+if (process.env.OWNER_NUMBERS !== undefined) {
+  config.ownerNumber = process.env.OWNER_NUMBERS.split(',').map((s) => s.trim()).filter(Boolean);
+}
+if (process.env.ONLY_OWNER !== undefined) config.onlyOwner = process.env.ONLY_OWNER !== 'false';
+
 const { handleMessage } = require('./handler');
 
 const MESSAGE_AGE_LIMIT = 5 * 60 * 1000; // abaikan pesan lebih tua dari 5 menit
@@ -50,7 +62,7 @@ async function getPairingNumber() {
 }
 
 async function startBot() {
-  const { state, saveCreds } = await useMultiFileAuthState(`./${config.sessionName}`);
+  const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
   const { version } = await fetchLatestBaileysVersion();
 
   const needsLogin = !state.creds.registered;
@@ -78,45 +90,46 @@ async function startBot() {
           .requestPairingCode(pairingNumber)
           .then((code) => {
             const pretty = code?.match(/.{1,4}/g)?.join('-') || code;
-            console.log(`\n📞 Nomor yang dipakai: ${pairingNumber}`);
-            console.log(`🔑 Kode pairing kamu: ${pretty}`);
-            console.log('   (Hanya kode TERBARU yang berlaku. Jika bot restart, pakai kode baru.)');
-            console.log('   Buka WhatsApp > Perangkat Tertaut > Tautkan Perangkat >');
-            console.log('   "Tautkan dengan nomor telepon saja", lalu masukkan kode di atas.\n');
+            console.log(`\n${logPrefix}📞 Nomor yang dipakai: ${pairingNumber}`);
+            console.log(`${logPrefix}🔑 Kode pairing kamu: ${pretty}`);
+            console.log(`${logPrefix}   (Hanya kode TERBARU yang berlaku. Jika bot restart, pakai kode baru.)`);
+            console.log(`${logPrefix}   Buka WhatsApp > Perangkat Tertaut > Tautkan Perangkat >`);
+            console.log(`${logPrefix}   "Tautkan dengan nomor telepon saja", lalu masukkan kode di atas.\n`);
           })
-          .catch((err) => console.error('Gagal meminta kode pairing:', err.message));
+          .catch((err) => console.error(`${logPrefix}Gagal meminta kode pairing:`, err.message));
       }
     } else if (qr) {
-      console.log('\n📱 Scan QR ini lewat WhatsApp > Perangkat Tertaut:\n');
+      console.log(`\n${logPrefix}📱 Scan QR ini lewat WhatsApp > Perangkat Tertaut:\n`);
       qrcode.generate(qr, { small: true });
-      QRCode.toFile('qr.png', qr, { scale: 10, margin: 4 })
-        .then(() => console.log('🖼️  QR juga disimpan sebagai gambar: qr.png (buka lalu scan dari HP lain)'))
+      const qrFile = ACCOUNT_ID ? `qr_${ACCOUNT_ID}.png` : 'qr.png';
+      QRCode.toFile(qrFile, qr, { scale: 10, margin: 4 })
+        .then(() => console.log(`${logPrefix}🖼️  QR juga disimpan sebagai gambar: ${qrFile} (buka lalu scan dari HP lain)`))
         .catch(() => {});
     }
 
     if (connection === 'open') {
       authResets = 0;
-      console.log(`\n✅ Bot terhubung sebagai ${sock.user.id.split(':')[0]}`);
-      console.log(`⚡ Prefix: ${config.prefix}  |  Perintah: ${config.commands.join(', ')}\n`);
+      console.log(`\n${logPrefix}✅ Bot terhubung sebagai ${sock.user.id.split(':')[0]}`);
+      console.log(`${logPrefix}⚡ Prefix: ${config.prefix}  |  Perintah: ${config.commands.join(', ')}\n`);
     }
 
     if (connection === 'close') {
       const code = lastDisconnect?.error?.output?.statusCode;
       const shouldReconnect = code !== DisconnectReason.loggedOut;
-      console.log(`Koneksi terputus (${code ?? 'unknown'}). Sambung ulang: ${shouldReconnect}`);
+      console.log(`${logPrefix}Koneksi terputus (${code ?? 'unknown'}). Sambung ulang: ${shouldReconnect}`);
       if (shouldReconnect) {
         setTimeout(startBot, 3000);
       } else {
         // 401 = sesi ditolak / logout. Hapus sesi rusak dan coba login ulang, maksimal 1 kali.
         if (authResets >= 1) {
-          console.log('❌ Login ditolak lagi (401). Berhenti supaya tidak membuat kode baru terus-menerus.');
-          console.log('   Cek: nomor sesuai akun WhatsApp di HP, pakai kode TERBARU, lalu jalankan ulang.');
+          console.log(`${logPrefix}❌ Login ditolak lagi (401). Berhenti supaya tidak membuat kode baru terus-menerus.`);
+          console.log(`${logPrefix}   Cek: nomor sesuai akun WhatsApp di HP, pakai kode TERBARU, lalu jalankan ulang.`);
           process.exit(1);
         }
         authResets++;
-        console.log('⚠️ Sesi tidak valid (401). Menghapus sesi lama dan mengulang login sekali...');
+        console.log(`${logPrefix}⚠️ Sesi tidak valid (401). Menghapus sesi lama dan mengulang login sekali...`);
         try {
-          fs.rmSync(`./${config.sessionName}`, { recursive: true, force: true });
+          fs.rmSync(sessionDir, { recursive: true, force: true });
         } catch (err) {
           console.error('Gagal menghapus folder sesi, hapus manual:', err.message);
         }

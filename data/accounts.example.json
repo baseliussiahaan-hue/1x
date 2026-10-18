@@ -1,0 +1,11 @@
+[
+  {
+    "id": "akun1",
+    "pairingNumber": "6281234567890"
+  },
+  {
+    "id": "akun2",
+    "pairingNumber": "6289876543210",
+    "forwardTo": "6281234567890"
+  }
+]

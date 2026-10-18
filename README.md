@@ -41,6 +41,39 @@ Saat pertama dijalankan, bot menanyakan nomor WhatsApp-mu.
 
 Nomor juga bisa diisi lewat `pairingNumber` di `config.js` atau env `PAIRING_NUMBER`. Sesi tersimpan di folder `session/`.
 
+## Menjalankan beberapa akun sekaligus
+
+Secara default `node index.js` hanya login satu akun WhatsApp. Untuk menjalankan lebih dari satu akun bersamaan (masing-masing dengan sesi, QR/pairing code, dan folder sendiri):
+
+1. **Buat daftar akun:**
+
+   ```bash
+   cp data/accounts.example.json data/accounts.json
+   ```
+
+   Isi `data/accounts.json`, contoh:
+
+   ```json
+   [
+     { "id": "akun1", "pairingNumber": "6281234567890" },
+     { "id": "akun2", "pairingNumber": "6289876543210", "forwardTo": "6281234567890" }
+   ]
+   ```
+
+   - `id`: nama unik akun (huruf/angka/`-`/`_`), dipakai sebagai label log dan nama folder sesi.
+   - `pairingNumber`: nomor WhatsApp akun ini untuk login kode pairing. Kosongkan untuk login pakai QR (QR akan muncul di terminal dan juga disimpan sebagai `qr_<id>.png`).
+   - `forwardTo`, `ownerNumbers`, `onlyOwner`: opsional, meng-override nilai di `config.js` khusus untuk akun tersebut.
+
+2. **Jalankan semua akun:**
+
+   ```bash
+   npm run start:multi
+   ```
+
+   Tiap akun berjalan sebagai proses sendiri, log-nya berlabel `[akun1]`, `[akun2]`, dst. Kode pairing/QR tiap akun muncul terpisah — tautkan satu per satu lewat WhatsApp seperti biasa. Kalau salah satu proses crash, otomatis di-restart.
+
+Setiap akun punya folder sesi sendiri (`session_<id>/`), jadi akun-akun tidak akan saling menimpa atau mengganggu satu sama lain.
+
 ## Konfigurasi (`config.js`)
 
 | Opsi | Keterangan |
