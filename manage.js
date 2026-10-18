@@ -42,7 +42,6 @@ function printAccounts(accounts) {
   }
   accounts.forEach((a, i) => {
     const extra = [];
-    if (a.prefix !== undefined) extra.push(`prefix "${a.prefix}"`);
     if (a.forwardTo !== undefined) extra.push(`forward ke ${a.forwardTo || '(chat asal)'}`);
     console.log(`  ${i + 1}. ${a.id}  —  ${a.pairingNumber || '(login pakai QR)'}${extra.length ? '  [' + extra.join(', ') + ']' : ''}`);
   });
@@ -61,9 +60,6 @@ async function addAccount(accounts) {
 
   const numberInput = await ask('Nomor WhatsApp akun ini, kode negara tanpa + atau spasi (kosongkan untuk login pakai QR): ');
   const account = { id, pairingNumber: normalizeNumber(numberInput) };
-
-  const prefixInput = (await ask('Prefix perintah khusus akun ini? (Enter = pakai default di config.js, mis. ","): ')).trim();
-  if (prefixInput) account.prefix = prefixInput;
 
   const forwardInput = (await ask('Kirim hasil foto ke nomor lain? (Enter = pakai default config.js, "-" = balas di chat asal, atau ketik nomornya): ')).trim();
   if (forwardInput === '-') account.forwardTo = '';
@@ -104,10 +100,9 @@ async function editAccount(accounts) {
   for (;;) {
     console.log(`\n--- Edit akun "${account.id}" ---`);
     console.log(`  1. Nomor pairing : ${account.pairingNumber || '(pakai QR)'}`);
-    console.log(`  2. Prefix        : ${account.prefix !== undefined ? account.prefix : '(default config.js)'}`);
-    console.log(`  3. Forward ke    : ${account.forwardTo !== undefined ? (account.forwardTo || '(chat asal)') : '(default config.js)'}`);
-    console.log('  4. Kembali ke menu utama');
-    const sub = (await ask('Mau ganti yang mana (1-4)? ')).trim();
+    console.log(`  2. Forward ke    : ${account.forwardTo !== undefined ? (account.forwardTo || '(chat asal)') : '(default config.js)'}`);
+    console.log('  3. Kembali ke menu utama');
+    const sub = (await ask('Mau ganti yang mana (1-3)? ')).trim();
 
     if (sub === '1') {
       const numberInput = await ask('Nomor WhatsApp baru, kode negara tanpa + atau spasi (kosongkan untuk login pakai QR): ');
@@ -115,22 +110,17 @@ async function editAccount(accounts) {
       saveAccounts(accounts);
       console.log('✅ Nomor pairing diperbarui. Kalau akun ini sudah pernah login, sesi lama tetap dipakai sampai dihapus.');
     } else if (sub === '2') {
-      const prefixInput = (await ask('Prefix baru, mis. "," atau "." (Enter = pakai default di config.js): ')).trim();
-      if (prefixInput) account.prefix = prefixInput;
-      else delete account.prefix;
-      saveAccounts(accounts);
-      console.log('✅ Prefix diperbarui.');
-    } else if (sub === '3') {
       const forwardInput = (await ask('Kirim hasil foto ke nomor lain? (Enter = pakai default config.js, "-" = balas di chat asal, atau ketik nomornya): ')).trim();
       if (!forwardInput) delete account.forwardTo;
       else if (forwardInput === '-') account.forwardTo = '';
       else account.forwardTo = normalizeNumber(forwardInput);
       saveAccounts(accounts);
       console.log('✅ Tujuan forward diperbarui.');
-    } else if (sub === '4') {
+    } else if (sub === '3') {
+      delete account.prefix;
       break;
     } else {
-      console.log('Pilihan tidak dikenal, ketik angka 1-4.');
+      console.log('Pilihan tidak dikenal, ketik angka 1-3.');
     }
   }
 
@@ -175,7 +165,6 @@ async function editPrefix() {
   const configPath = path.join(__dirname, 'config.js');
   const config = require('./config');
   console.log('\nPrefix default saat ini: ' + JSON.stringify(config.prefix));
-  console.log('Akun dengan prefix khusus tetap memakai prefix masing-masing.');
   const answer = await ask('Masukkan prefix baru (contoh: ! atau . atau ,): ');
   const prefix = answer.trim();
   if (!prefix || prefix.length > 5 || /\s/.test(prefix)) {
@@ -189,7 +178,7 @@ async function editPrefix() {
     fs.writeFileSync(configPath, updated, 'utf8');
     delete require.cache[require.resolve('./config')];
     console.log('Prefix default berhasil diubah menjadi ' + JSON.stringify(prefix));
-    console.log('Perubahan berlaku pada pesan berikutnya untuk akun tanpa prefix khusus.');
+    console.log('Prefix global berhasil diubah dan akan dipakai semua akun pada pesan berikutnya.');
   } catch (err) {
     console.log('Gagal menyimpan prefix: ' + err.message);
   }
