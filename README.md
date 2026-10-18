@@ -43,7 +43,30 @@ Nomor juga bisa diisi lewat `pairingNumber` di `config.js` atau env `PAIRING_NUM
 
 ## Menjalankan beberapa akun sekaligus
 
-Secara default `node index.js` hanya login satu akun WhatsApp. Untuk menjalankan lebih dari satu akun bersamaan (masing-masing dengan sesi, QR/pairing code, dan folder sendiri):
+Secara default `node index.js` hanya login satu akun WhatsApp. Untuk menjalankan lebih dari satu akun bersamaan (masing-masing dengan sesi, QR/pairing code, dan folder sendiri), ada dua cara:
+
+### Cara mudah: menu interaktif
+
+```bash
+npm run accounts
+```
+
+(atau `node manage.js`). Akan muncul menu:
+
+```
+1. Tambah akun
+2. Hapus akun
+3. Jalankan semua akun
+4. Keluar
+```
+
+- **1. Tambah akun** — tinggal ketik id bebas (mis. `akun1`) dan nomor WhatsApp-nya; bisa langsung ditanya "jalankan sekarang?" untuk langsung menampilkan kode pairing akun itu.
+- **2. Hapus akun** — pilih dari daftar, dan bisa sekalian menghapus folder sesinya.
+- **3. Jalankan semua akun** — menyalakan semua akun yang sudah tersimpan sekaligus.
+
+Tidak perlu edit file apa pun secara manual — menu ini yang mengurus `data/accounts.json`.
+
+### Cara manual: edit file sendiri
 
 1. **Buat daftar akun:**
 

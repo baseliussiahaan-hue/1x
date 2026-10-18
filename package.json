@@ -6,7 +6,8 @@
   "type": "commonjs",
   "scripts": {
     "start": "node index.js",
-    "start:multi": "node multi-start.js"
+    "start:multi": "node multi-start.js",
+    "accounts": "node manage.js"
   },
   "keywords": [
     "whatsapp",

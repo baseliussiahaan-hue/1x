@@ -1,23 +1,17 @@
 /**
- * Launcher multi-akun.
+ * Launcher multi-akun (non-interaktif).
  *
- * Secara default `node index.js` hanya menjalankan satu akun WhatsApp. File
- * ini menjalankan BEBERAPA akun sekaligus, masing-masing sebagai proses
- * sendiri dengan folder sesi, QR/pairing code, dan (opsional) tujuan forward
- * sendiri-sendiri — satu akun tidak akan mengganggu akun lain.
+ * Membaca data/accounts.json dan menjalankan SEMUA akun yang ada di situ
+ * sekaligus, masing-masing sebagai proses sendiri dengan folder sesi dan
+ * QR/pairing code sendiri — satu akun tidak akan mengganggu akun lain.
  *
- * Pemakaian:
- *   1. cp data/accounts.example.json data/accounts.json
- *   2. Isi data/accounts.json dengan daftar akun, contoh:
- *        [
- *          { "id": "akun1", "pairingNumber": "6281234567890" },
- *          { "id": "akun2", "pairingNumber": "6289876543210" }
- *        ]
- *   3. node multi-start.js   (atau: npm run start:multi)
- *   4. Kode pairing tiap akun muncul berlabel [akun1], [akun2], dst. Tautkan
- *      masing-masing lewat WhatsApp > Perangkat Tertaut seperti biasa.
+ * Kalau belum pernah menambah akun, lebih gampang pakai menu interaktif:
+ *   node manage.js
  *
- * Field per akun (hanya "id" yang wajib):
+ * Pemakaian langsung (tanpa menu, cocok untuk panel hosting / cron):
+ *   node multi-start.js   (atau: npm run start:multi)
+ *
+ * Field per akun di data/accounts.json (hanya "id" yang wajib):
  *   id            - nama unik akun (huruf/angka/"-"/"_"), dipakai sebagai label & nama folder sesi
  *   pairingNumber - nomor WhatsApp akun ini untuk login kode pairing (kosongkan untuk pakai QR)
  *   forwardTo     - override config.forwardTo khusus akun ini (opsional)
@@ -27,61 +21,23 @@
  * Setiap akun menyimpan sesinya sendiri di session_<id>/ agar tidak bentrok.
  */
 const { spawn } = require('child_process');
-const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
+const { loadAccounts } = require('./lib/accounts-store');
 
-const ACCOUNTS_FILE = path.join(__dirname, 'data', 'accounts.json');
-const EXAMPLE_FILE = path.join(__dirname, 'data', 'accounts.example.json');
 const RESTART_DELAY_MS = 5000;
-
-function loadAccounts() {
-  if (!fs.existsSync(ACCOUNTS_FILE)) {
-    console.error(`Tidak ditemukan ${ACCOUNTS_FILE}`);
-    console.error(`Buat dulu dari contohnya:\n  cp ${path.relative(__dirname, EXAMPLE_FILE)} ${path.relative(__dirname, ACCOUNTS_FILE)}`);
-    process.exit(1);
-  }
-
-  let accounts;
-  try {
-    accounts = JSON.parse(fs.readFileSync(ACCOUNTS_FILE, 'utf-8'));
-  } catch (err) {
-    console.error(`Gagal membaca ${ACCOUNTS_FILE}: ${err.message}`);
-    process.exit(1);
-  }
-
-  if (!Array.isArray(accounts) || accounts.length === 0) {
-    console.error(`${ACCOUNTS_FILE} harus berupa array berisi minimal satu akun.`);
-    process.exit(1);
-  }
-
-  const seenIds = new Set();
-  for (const acc of accounts) {
-    if (!acc || typeof acc.id !== 'string' || !acc.id.trim()) {
-      console.error('Setiap akun wajib punya "id" (string), contoh: "akun1".');
-      process.exit(1);
-    }
-    if (!/^[a-zA-Z0-9_-]+$/.test(acc.id)) {
-      console.error(`id akun "${acc.id}" tidak valid — gunakan huruf, angka, "-" atau "_" saja.`);
-      process.exit(1);
-    }
-    if (seenIds.has(acc.id)) {
-      console.error(`id akun "${acc.id}" duplikat — setiap akun butuh id unik.`);
-      process.exit(1);
-    }
-    seenIds.add(acc.id);
-  }
-
-  return accounts;
-}
+const runningChildren = new Set();
 
 function prefixStream(stream, label) {
   const rl = readline.createInterface({ input: stream });
   rl.on('line', (line) => console.log(`[${label}] ${line}`));
 }
 
-const runningChildren = new Set();
-
+/**
+ * Jalankan satu akun sebagai proses index.js terpisah. Me-restart otomatis
+ * kalau proses itu berhenti sendiri (crash), sampai stop() dipanggil.
+ * @returns {() => void} stop - panggil untuk mematikan akun ini dan berhenti me-restart.
+ */
 function startAccount(account) {
   let shuttingDown = false;
 
@@ -119,6 +75,10 @@ function startAccount(account) {
   return () => { shuttingDown = true; };
 }
 
+function stopAllRunning() {
+  for (const child of runningChildren) child.kill('SIGTERM');
+}
+
 function main() {
   const accounts = loadAccounts();
   console.log(`Menjalankan ${accounts.length} akun: ${accounts.map((a) => a.id).join(', ')}`);
@@ -128,7 +88,7 @@ function main() {
   const shutdown = () => {
     console.log('\nMenghentikan semua akun...');
     stopFns.forEach((stop) => stop());
-    for (const child of runningChildren) child.kill('SIGTERM');
+    stopAllRunning();
     setTimeout(() => process.exit(0), 1000);
   };
 
@@ -136,4 +96,8 @@ function main() {
   process.on('SIGTERM', shutdown);
 }
 
-main();
+if (require.main === module) {
+  main();
+}
+
+module.exports = { startAccount, stopAllRunning, runningChildren };
