@@ -169,16 +169,63 @@ async function removeAccount(accounts) {
   return accounts;
 }
 
+async function saveCommands(commands) {
+  const configPath = path.join(__dirname, 'config.js');
+  const source = fs.readFileSync(configPath, 'utf8');
+  const updated = source.replace(/commands:\s*\[[^\]]*\]/, 'commands: ' + JSON.stringify([...new Set(commands)]));
+  if (updated === source) throw new Error('Baris commands tidak ditemukan di config.js');
+  fs.writeFileSync(configPath, updated, 'utf8');
+}
+
+async function commandMenu() {
+  for (;;) {
+    console.log('\n=== MENU BOT BERJALAN ===');
+    console.log('1. Ganti semua command');
+    console.log('2. Tambah command baru');
+    console.log('3. Kelola akun (tambah/edit/hapus)');
+    console.log('4. Hentikan bot dan kembali ke menu utama');
+    const choice = (await ask('Pilih (1-4): ')).trim();
+    const config = require('./config');
+
+    if (choice === '1' || choice === '2') {
+      const answer = await ask(choice === '1'
+        ? 'Masukkan daftar command dipisahkan koma (contoh: vv, apa coba): '
+        : 'Masukkan command yang ingin ditambahkan (contoh: apa coba): ');
+      const items = answer.split(',').map((item) => item.trim().replace(/\\s+/g, ' ').toLowerCase())
+        .filter((item) => /^[a-zA-Z0-9_-]+(?: [a-zA-Z0-9_-]+)*$/.test(item));
+      if (!items.length) { console.log('Command tidak valid; tidak ada perubahan.'); continue; }
+      const commands = choice === '1' ? [...new Set(items)] : [...new Set([...(config.commands || []), ...items])];
+      try {
+        await saveCommands(commands);
+        console.log('✅ Command tersimpan: ' + commands.join(', '));
+        console.log('Perubahan dipakai bot yang berjalan pada pesan berikutnya.');
+      } catch (err) { console.log('Gagal menyimpan command: ' + err.message); }
+    } else if (choice === '3') {
+      console.log('Hentikan bot dulu (opsi 4), lalu pilih tambah/edit/hapus akun di menu utama.');
+    } else if (choice === '4') {
+      return;
+    } else {
+      console.log('Pilihan tidak valid.');
+    }
+  }
+}
+
 async function runAll(accounts) {
   if (accounts.length === 0) {
-    console.log('Belum ada akun. Tambah dulu lewat menu 1.');
+    console.log('Belum ada akun. Tambah dulu lewat menu utama.');
     return;
   }
-  console.log(`\n🚀 Menjalankan ${accounts.length} akun: ${accounts.map((a) => a.id).join(', ')}`);
-  console.log('(Ctrl+C untuk berhenti)\n');
-  rl.close();
-  accounts.forEach((a) => startAccount(a));
-  await new Promise(() => {}); // tetap berjalan sampai Ctrl+C
+  console.log(`\\n🚀 Menjalankan ${accounts.length} akun: ${accounts.map((a) => a.id).join(', ')}`);
+  console.log('(Bot berjalan di latar proses ini. Pilih menu untuk mengubah command atau menghentikan bot.)');
+  const stopFns = accounts.map((a) => startAccount(a));
+  for (;;) {
+    await commandMenu();
+    console.log('Menghentikan akun yang dijalankan...');
+    stopFns.forEach((stop) => stop());
+    require('./multi-start').stopAllRunning();
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+    return;
+  }
 }
 
 async function main() {
