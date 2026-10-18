@@ -73,13 +73,7 @@ async function addAccount(accounts) {
   saveAccounts(accounts);
   console.log(`✅ Akun "${id}" ditambahkan ke data/accounts.json.`);
 
-  const runNow = (await ask('Jalankan akun ini sekarang? (y/n): ')).trim().toLowerCase();
-  if (runNow === 'y' || runNow === 'yes') {
-    console.log(`\n🚀 Menjalankan akun "${id}"... (Ctrl+C untuk berhenti, lalu buka lagi dengan "node manage.js")\n`);
-    rl.close();
-    startAccount(account);
-    await new Promise(() => {}); // tetap berjalan sampai Ctrl+C
-  }
+  console.log('Pilih menu "Jalankan semua akun" untuk menjalankan akun yang baru ditambahkan.');
   return accounts;
 }
 
