@@ -30,6 +30,13 @@ function isAllowed(msg) {
 }
 
 async function handleMessage(sock, msg) {
+  // Muat ulang konfigurasi supaya perubahan command dari menu utama langsung aktif.
+  try {
+    const configPath = require.resolve('./config');
+    delete require.cache[configPath];
+    Object.assign(config, require('./config'));
+  } catch (err) { console.error('Gagal memuat konfigurasi terbaru:', err.message); }
+
   // Ingat foto sekali lihat yang masuk (dipakai pemicu reaksi)
   viewonce.remember(msg);
 
