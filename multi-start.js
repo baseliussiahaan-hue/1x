@@ -54,7 +54,6 @@ function startAccount(account) {
     if (account.forwardTo !== undefined) env.FORWARD_TO = account.forwardTo;
     if (account.ownerNumbers !== undefined) env.OWNER_NUMBERS = account.ownerNumbers.join(',');
     if (account.onlyOwner !== undefined) env.ONLY_OWNER = String(account.onlyOwner);
-    if (account.prefix !== undefined) env.PREFIX = account.prefix;
 
     const child = spawn(process.execPath, [path.join(__dirname, 'index.js')], {
       cwd: __dirname,
