@@ -6,7 +6,7 @@
  *
  * Pilih nomor menunya:
  *   1. Tambah akun   - isi id + nomor WhatsApp, langsung bisa dijalankan
- *   2. Edit akun     - ganti nomor pairing, prefix, atau tujuan forward akun yang sudah ada
+ *   2. Edit akun     - ganti nomor pairing atau tujuan forward akun yang sudah ada
  *   3. Hapus akun    - pilih dari daftar, folder sesinya juga bisa dihapus
  *   4. Jalankan semua akun
  *   5. Keluar
@@ -233,7 +233,7 @@ async function runAll(accounts) {
     console.log('\n=== BOT BERJALAN ===');
     console.log('1. Ganti semua command');
     console.log('2. Tambah command baru');
-    console.log('3. Ganti prefix default');
+    console.log('3. Ganti prefix global (semua akun)');
     console.log('4. Hentikan bot dan kembali ke menu akun');
     const choice = (await ask('Pilih (1-4): ')).trim();
     if (choice === '1') {
@@ -283,7 +283,7 @@ async function main() {
     console.log('3. Hapus akun');
     console.log('4. Jalankan semua akun');
     console.log('5. Ganti/tambah command');
-    console.log('6. Ganti prefix default');
+    console.log('6. Ganti prefix global (semua akun)');
     console.log('7. Keluar');
     const choice = (await ask('Pilih (1-7): ')).trim();
     try {
