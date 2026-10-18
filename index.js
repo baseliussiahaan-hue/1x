@@ -48,7 +48,8 @@ function startTerminalMenu() {
     console.log('\n=== MENU BOT ===');
     console.log('1. Keluar');
     console.log('2. Ganti perintah/command');
-    rl.question('Pilih (1/2): ', (choice) => {
+    console.log('3. Tambah akun WhatsApp lain');
+    rl.question('Pilih (1/3): ', (choice) => {
       if (choice.trim() === '1') {
         console.log('Menutup bot...');
         rl.close();
@@ -82,7 +83,38 @@ function startTerminalMenu() {
         return;
       }
 
-      console.log('Pilihan tidak valid. Masukkan 1 atau 2.');
+      if (choice.trim() === '3') {
+        const { loadAccounts, saveAccounts, ID_RE } = require('./lib/accounts-store');
+        const accounts = loadAccounts({ required: false });
+        rl.question('ID akun baru (mis. akun2, tanpa spasi): ', (rawId) => {
+          const id = rawId.trim();
+          if (!ID_RE.test(id)) {
+            console.log('ID tidak valid. Gunakan huruf, angka, tanda - atau _.');
+            askMenu();
+            return;
+          }
+          if (accounts.some((account) => account.id === id)) {
+            console.log('ID akun tersebut sudah ada. Pilih ID lain.');
+            askMenu();
+            return;
+          }
+          rl.question('Nomor WhatsApp akun baru dengan kode negara (kosongkan untuk login QR): ', (rawNumber) => {
+            const pairingNumber = normalizeNumber(rawNumber);
+            accounts.push({ id, pairingNumber });
+            try {
+              saveAccounts(accounts);
+              console.log('Akun "' + id + '" berhasil disimpan ke data/accounts.json.');
+              console.log('Untuk menjalankan semua akun, hentikan bot lalu jalankan: npm run accounts');
+            } catch (err) {
+              console.error('Gagal menyimpan akun:', err.message);
+            }
+            askMenu();
+          });
+        });
+        return;
+      }
+
+      console.log('Pilihan tidak valid. Masukkan 1, 2, atau 3.');
       askMenu();
     });
   };
