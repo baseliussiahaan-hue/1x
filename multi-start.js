@@ -28,6 +28,7 @@ const { loadAccounts } = require('./lib/accounts-store');
 
 const RESTART_DELAY_MS = 5000;
 const runningChildren = new Set();
+const accountStops = new Map();
 
 function prefixStream(stream, label) {
   const rl = readline.createInterface({ input: stream });
@@ -56,7 +57,7 @@ function startAccount(account) {
 
     const child = spawn(process.execPath, [path.join(__dirname, 'index.js')], {
       cwd: __dirname,
-      stdio: ['ignore', 'pipe', 'pipe'],
+      stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
       env,
     });
 
@@ -74,7 +75,20 @@ function startAccount(account) {
   };
 
   launch();
-  return () => { shuttingDown = true; };
+  const stop = () => {
+    shuttingDown = true;
+    const child = [...runningChildren].find((candidate) => candidate.env?.ACCOUNT_ID === account.id);
+    if (child && child.connected) child.send({ type: 'logout' });
+    else if (child) child.kill('SIGTERM');
+  };
+  accountStops.set(account.id, stop);
+  return () => { stop(); accountStops.delete(account.id); };
+}
+
+function stopAccount(id) {
+  const stop = accountStops.get(id);
+  if (stop) stop();
+  else for (const child of runningChildren) if (child.env?.ACCOUNT_ID === id) child.kill('SIGTERM');
 }
 
 function stopAllRunning() {
@@ -102,4 +116,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { startAccount, stopAllRunning, runningChildren };
+module.exports = { startAccount, stopAccount, stopAllRunning, runningChildren };
