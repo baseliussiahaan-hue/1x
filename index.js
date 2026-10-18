@@ -35,7 +35,60 @@ const { handleMessage } = require('./handler');
 const MESSAGE_AGE_LIMIT = 5 * 60 * 1000; // abaikan pesan lebih tua dari 5 menit
 let authResets = 0; // berapa kali sesi dihapus otomatis karena 401
 const processed = new Set();
+let terminalMenuStarted = false;
 setInterval(() => processed.clear(), 5 * 60 * 1000);
+
+// Menu terminal setelah bot berhasil terhubung.
+function startTerminalMenu() {
+  if (terminalMenuStarted || !process.stdin.isTTY) return;
+  terminalMenuStarted = true;
+
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  const askMenu = () => {
+    console.log('\n=== MENU BOT ===');
+    console.log('1. Keluar');
+    console.log('2. Ganti perintah/command');
+    rl.question('Pilih (1/2): ', (choice) => {
+      if (choice.trim() === '1') {
+        console.log('Menutup bot...');
+        rl.close();
+        process.exit(0);
+        return;
+      }
+
+      if (choice.trim() === '2') {
+        console.log(`Command saat ini: ${config.commands.join(', ')}`);
+        rl.question('Masukkan command baru, pisahkan dengan koma (contoh: vv, viewonce): ', (answer) => {
+          const commands = [...new Set(answer.split(',').map((item) => item.trim().replace(/^,+/, '').replace(/^[.!#]+/, '')).filter((item) => /^[a-zA-Z0-9_-]+$/.test(item)))];
+          if (commands.length === 0) {
+            console.log('Tidak ada command valid. Command tidak diubah.');
+            askMenu();
+            return;
+          }
+
+          try {
+            const configPath = require.resolve('./config');
+            const source = fs.readFileSync(configPath, 'utf8');
+            const updated = source.replace(/commands:\s*\[[^\]]*\]/, 'commands: ' + JSON.stringify(commands));
+            if (updated === source) throw new Error('Baris commands tidak ditemukan di config.js');
+            fs.writeFileSync(configPath, updated, 'utf8');
+            config.commands = commands;
+            console.log('Command berhasil disimpan ke config.js: ' + commands.join(', '));
+          } catch (err) {
+            console.error('Gagal menyimpan command:', err.message);
+          }
+          askMenu();
+        });
+        return;
+      }
+
+      console.log('Pilihan tidak valid. Masukkan 1 atau 2.');
+      askMenu();
+    });
+  };
+
+  askMenu();
+}
 
 // Tanya nomor WhatsApp untuk login via kode pairing (tanpa scan QR).
 // Urutan: env PAIRING_NUMBER > config.pairingNumber > prompt terminal. Kosong = pakai QR.
@@ -112,6 +165,7 @@ async function startBot() {
       authResets = 0;
       console.log(`\n${logPrefix}✅ Bot terhubung sebagai ${sock.user.id.split(':')[0]}`);
       console.log(`${logPrefix}⚡ Prefix: ${config.prefix}  |  Perintah: ${config.commands.join(', ')}\n`);
+      startTerminalMenu();
     }
 
     if (connection === 'close') {
