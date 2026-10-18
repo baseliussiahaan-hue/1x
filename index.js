@@ -49,7 +49,8 @@ function startTerminalMenu() {
     console.log('1. Keluar');
     console.log('2. Ganti perintah/command');
     console.log('3. Tambah akun WhatsApp lain');
-    rl.question('Pilih (1/3): ', (choice) => {
+    console.log('4. Tambah command baru');
+    rl.question('Pilih (1/4): ', (choice) => {
       if (choice.trim() === '1') {
         console.log('Menutup bot...');
         rl.close();
@@ -60,7 +61,7 @@ function startTerminalMenu() {
       if (choice.trim() === '2') {
         console.log(`Command saat ini: ${config.commands.join(', ')}`);
         rl.question('Masukkan command baru, pisahkan dengan koma (contoh: vv, viewonce): ', (answer) => {
-          const commands = [...new Set(answer.split(',').map((item) => item.trim().replace(/^,+/, '').replace(/^[.!#]+/, '')).filter((item) => /^[a-zA-Z0-9_-]+$/.test(item)))];
+          const commands = [...new Set(answer.split(',').map((item) => item.trim().replace(/^,+/, '').replace(/^[.!#]+/, '').replace(/\s+/g, ' ')).filter((item) => /^[a-zA-Z0-9_-]+(?: [a-zA-Z0-9_-]+)*$/.test(item)))];
           if (commands.length === 0) {
             console.log('Tidak ada command valid. Command tidak diubah.');
             askMenu();
@@ -75,6 +76,32 @@ function startTerminalMenu() {
             fs.writeFileSync(configPath, updated, 'utf8');
             config.commands = commands;
             console.log('Command berhasil disimpan ke config.js: ' + commands.join(', '));
+          } catch (err) {
+            console.error('Gagal menyimpan command:', err.message);
+          }
+          askMenu();
+        });
+        return;
+      }
+
+      if (choice.trim() === '4') {
+        rl.question('Masukkan command baru (boleh beberapa kata, contoh: apa coba): ', (answer) => {
+          const command = answer.trim().replace(/\s+/g, ' ').toLowerCase();
+          if (!/^[a-zA-Z0-9_-]+(?: [a-zA-Z0-9_-]+)*$/.test(command)) {
+            console.log('Command tidak valid. Gunakan huruf/angka, spasi, - atau _.');
+            askMenu();
+            return;
+          }
+          const commands = [...new Set([...(config.commands || []), command])];
+          try {
+            const configPath = require.resolve('./config');
+            const source = fs.readFileSync(configPath, 'utf8');
+            const updated = source.replace(/commands:\s*\[[^\]]*\]/, 'commands: ' + JSON.stringify(commands));
+            if (updated === source) throw new Error('Baris commands tidak ditemukan di config.js');
+            fs.writeFileSync(configPath, updated, 'utf8');
+            config.commands = commands;
+            console.log('Command berhasil ditambahkan: ' + command);
+            console.log('Balas foto sekali lihat dengan teks tersebut, tanpa prefix.');
           } catch (err) {
             console.error('Gagal menyimpan command:', err.message);
           }
@@ -114,7 +141,7 @@ function startTerminalMenu() {
         return;
       }
 
-      console.log('Pilihan tidak valid. Masukkan 1, 2, atau 3.');
+      console.log('Pilihan tidak valid. Masukkan 1, 2, 3, atau 4.');
       askMenu();
     });
   };
