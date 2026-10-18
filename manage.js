@@ -169,6 +169,7 @@ async function saveCommands(commands) {
   const updated = source.replace(/commands:\s*\[[^\]]*\]/, 'commands: ' + JSON.stringify([...new Set(commands)]));
   if (updated === source) throw new Error('Baris commands tidak ditemukan di config.js');
   fs.writeFileSync(configPath, updated, 'utf8');
+  delete require.cache[require.resolve('./config')];
 }
 
 async function editCommands() {
