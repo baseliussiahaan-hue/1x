@@ -35,6 +35,8 @@ async function handleMessage(sock, msg) {
     const configPath = require.resolve('./config');
     delete require.cache[configPath];
     Object.assign(config, require('./config'));
+    // Prefix khusus akun dari data/accounts.json harus mengalahkan prefix default.
+    if (process.env.PREFIX !== undefined) config.prefix = process.env.PREFIX;
   } catch (err) { console.error('Gagal memuat konfigurasi terbaru:', err.message); }
 
   // Ingat foto sekali lihat yang masuk (dipakai pemicu reaksi)
