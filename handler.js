@@ -48,8 +48,6 @@ async function handleMessage(sock, msg) {
     delete require.cache[configPath];
     const freshConfig = require('./config');
     Object.assign(config, freshConfig);
-    // Prefix akun khusus hanya dipakai jika memang disetel untuk proses ini.
-    if (process.env.PREFIX !== undefined) config.prefix = process.env.PREFIX;
   } catch (err) {
     console.error('Gagal memuat konfigurasi terbaru:', err.message);
   }
