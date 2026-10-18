@@ -50,11 +50,11 @@ async function handleMessage(sock, msg) {
   }
 
   const text = getText(msg.message).trim().replace(/\s+/g, ' ').toLowerCase();
-  const hasPrefix = text.startsWith(config.prefix);
-  // Tanpa prefix, command hanya aktif jika membalas pesan (reply).
-  if (!hasPrefix && !viewonce.getContextInfo?.(msg.message)?.quotedMessage) return;
-  const command = hasPrefix ? text.slice(config.prefix.length).trim() : text;
-  if (!config.commands.some((item) => String(item).toLowerCase() === command)) return;
+  const prefix = String(config.prefix || '');
+  const hasPrefix = prefix.length > 0 && text.startsWith(prefix);
+  // Terima command yang terdaftar dengan atau tanpa prefix.
+  const command = hasPrefix ? text.slice(prefix.length).trim() : text;
+  if (!config.commands.some((item) => String(item).trim().replace(/\s+/g, ' ').toLowerCase() === command)) return;
 
   if (!isAllowed(msg)) return;
 
