@@ -2,22 +2,16 @@
  * Buka foto "sekali lihat" (view once).
  *
  * Dua pemicu:
- *  1) Balas (reply) foto sekali lihat dengan  ,vv
- *  2) Beri reaksi (emoji) pada foto sekali lihat
+ *  1) Balas (reply) foto sekali lihat dengan command
+ *  2) Beri reaksi emoji pada foto sekali lihat
  *
- * Jika config.forwardTo diisi, SEMUA keluaran (foto maupun pesan gagal)
- * hanya dikirim ke nomor itu; chat asal tidak ditulisi apa pun.
- *
- * Diadaptasi dari KnightBot-Mini (MIT), dipangkas hanya untuk foto.
+ * Jika config.forwardTo diisi, keluaran dikirim ke nomor itu.
  */
 const { downloadContentFromMessage } = require('@whiskeysockets/baileys');
 const config = require('../config');
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// ---------- utilitas pesan ----------
-
-// Buka pembungkus ephemeral / dokumen sampai ketemu isi pesan
 function unwrap(message) {
   let m = message;
   for (let i = 0; i < 5 && m; i++) {
@@ -33,7 +27,6 @@ function unwrap(message) {
   return m;
 }
 
-// Cari media view-once di sebuah pesan: { type: 'image'|'video'|'audio', media } atau null
 function findViewOnce(message) {
   let m = message;
   let wrapped = false;
@@ -59,7 +52,6 @@ function findViewOnce(message) {
   return null;
 }
 
-// Ambil contextInfo (info pesan yang dibalas) dari tipe pesan apa pun
 function getContextInfo(message) {
   const m = unwrap(message);
   if (!m) return null;
@@ -69,22 +61,23 @@ function getContextInfo(message) {
   return null;
 }
 
-// ---------- cache foto sekali lihat yang masuk (untuk pemicu reaksi) ----------
-// Reaksi hanya membawa ID pesan, jadi isi foto harus diingat saat pesan masuk.
-// Hanya info media foto view-once yang disimpan (bukan fotonya), maksimal 300 terakhir.
+// Reaksi hanya membawa ID pesan asli. Simpan metadata foto masuk, bukan isi fotonya.
 const MAX_CACHE = 300;
 const cache = new Map();
 
-function remember(msg) {
-  const id = msg?.key?.id;
-  if (!id || !msg.message || msg.key.fromMe) return;
-  const found = findViewOnce(msg.message);
-  if (found?.type !== 'image') return;
-  cache.set(id, found.media);
-  if (cache.size > MAX_CACHE) cache.delete(cache.keys().next().value);
+function cacheKey(chatId, messageId) {
+  return chatId && messageId ? chatId + ':' + messageId : '';
 }
 
-// ---------- unduh & kirim ----------
+function remember(msg) {
+  const id = msg?.key?.id;
+  const chatId = msg?.key?.remoteJid;
+  if (!id || !chatId || !msg.message || msg.key.fromMe) return;
+  const found = findViewOnce(msg.message);
+  if (found?.type !== 'image') return;
+  cache.set(cacheKey(chatId, id), found.media);
+  if (cache.size > MAX_CACHE) cache.delete(cache.keys().next().value);
+}
 
 async function downloadImage(image, attempts = 3) {
   let lastErr;
@@ -96,11 +89,7 @@ async function downloadImage(image, attempts = 3) {
       return Buffer.concat(chunks);
     } catch (err) {
       lastErr = err;
-      console.error(
-        `Unduh foto gagal (percobaan ${i}/${attempts}):`,
-        err.message,
-        err.cause?.code || err.cause?.message || ''
-      );
+      console.error(`Unduh foto gagal (percobaan ${i}/${attempts}):`, err.message, err.cause?.code || err.cause?.message || '');
       if (i < attempts) await sleep(1500 * i);
     }
   }
@@ -112,7 +101,6 @@ function describeError(err) {
   return (err?.message || 'kesalahan tidak diketahui') + (cause ? ` (penyebab: ${cause})` : '');
 }
 
-// Cari JID nomor tujuan: string = valid, null = tidak diisi, undefined = diisi tapi tidak valid
 async function resolveTarget(sock) {
   const digits = String(config.forwardTo || '').replace(/\D/g, '');
   if (!digits) return null;
@@ -126,7 +114,6 @@ async function resolveTarget(sock) {
   return undefined;
 }
 
-// Siapkan jalur keluaran. quoted = pesan untuk di-quote saat membalas di chat asal (opsional)
 async function createOutput(sock, chatId, quoted) {
   const target = await resolveTarget(sock);
   const opts = quoted ? { quoted } : undefined;
@@ -135,7 +122,7 @@ async function createOutput(sock, chatId, quoted) {
     async notify(text) {
       if (target) return sock.sendMessage(target, { text });
       if (target === null) return sock.sendMessage(chatId, { text }, opts);
-      console.error('[viewonce]', text); // tujuan tidak valid: jangan bocor ke chat asal
+      console.error('[viewonce]', text);
     },
     async sendPhoto(buffer, caption) {
       if (target) return sock.sendMessage(target, { image: buffer, caption });
@@ -145,24 +132,19 @@ async function createOutput(sock, chatId, quoted) {
   };
 }
 
-// ---------- pemicu 1: perintah ,vv ----------
-
 async function execute(sock, msg) {
   const chatId = msg.key.remoteJid;
   const out = await createOutput(sock, chatId, msg);
-
   try {
     const quoted = getContextInfo(msg.message)?.quotedMessage;
     if (!quoted) {
       return await out.notify('🗑️ Balas (reply) sebuah foto *sekali lihat* dengan perintah ini, atau beri reaksi pada fotonya.');
     }
-
     const found = findViewOnce(quoted);
     if (found && found.type !== 'image') {
       return await out.notify('❌ Bot ini hanya mendukung *foto*, bukan video atau audio.');
     }
     if (!found) return await out.notify('❌ Itu bukan foto sekali lihat!');
-
     const buffer = await downloadImage(found.media);
     await out.sendPhoto(buffer, found.media.caption || '');
   } catch (err) {
@@ -171,20 +153,19 @@ async function execute(sock, msg) {
   }
 }
 
-// ---------- pemicu 2: reaksi emoji ----------
-
 async function handleReaction(sock, msg, reaction) {
-  if (!reaction?.text) return; // reaksi dihapus
+  if (!reaction?.text) return;
   if (config.reactionEmojis?.length && !config.reactionEmojis.includes(reaction.text)) return;
 
-  const image = cache.get(reaction.key?.id);
-  if (!image) return; // bukan foto sekali lihat yang dikenal bot: abaikan diam-diam
+  const originalMessageId = reaction.key?.id;
+  const chatId = msg.key?.remoteJid;
+  const image = cache.get(cacheKey(chatId, originalMessageId));
+  if (!image) return;
 
-  const out = await createOutput(sock, msg.key.remoteJid, null);
+  const out = await createOutput(sock, chatId, null);
   try {
     const buffer = await downloadImage(image);
     await out.sendPhoto(buffer, image.caption || '');
-    // Tidak memberi reaksi balasan apa pun ke pesan/foto aslinya.
   } catch (err) {
     console.error('Error pada pemicu reaksi:', err);
     await out.notify('❌ Gagal membuka foto: ' + describeError(err)).catch(() => {});
