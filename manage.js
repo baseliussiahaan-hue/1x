@@ -15,7 +15,7 @@ const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
 const { loadAccounts, saveAccounts, ID_RE } = require('./lib/accounts-store');
-const { startAccount } = require('./multi-start');
+const { startAccount, stopAccount } = require('./multi-start');
 
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 // Pakai readline sebagai async iterator (bukan rl.question() berulang kali):
@@ -147,20 +147,19 @@ async function removeAccount(accounts) {
   const idx = await pickAccount(accounts, 'Nomor akun yang mau dihapus (Enter untuk batal): ');
   if (idx === -1) return accounts;
 
-  const [removed] = accounts.splice(idx, 1);
-  saveAccounts(accounts);
-  console.log(`🗑️  Akun "${removed.id}" dihapus dari daftar.`);
-
-  const delSession = (await ask(`Hapus juga folder sesi login "session_${removed.id}"? Akun akan perlu login ulang nanti. (y/n): `)).trim().toLowerCase();
-  if (delSession === 'y' || delSession === 'yes') {
-    try {
-      fs.rmSync(path.join(__dirname, `session_${removed.id}`), { recursive: true, force: true });
-      console.log('Folder sesi dihapus.');
-    } catch (err) {
-      console.log('Gagal menghapus folder sesi:', err.message);
-    }
-  }
-  return accounts;
+  const removed = accounts[idx];
+  const confirm = (await ask(`Hapus akun "${removed.id}" dan logout WhatsApp sekarang? Sesi lokal juga akan dihapus. (y/n): `)).trim().toLowerCase();
+  if (confirm !== 'y' && confirm !== 'yes') { console.log('Penghapusan dibatalkan.'); return accounts; }
+  try {
+    stopAccount(removed.id);
+    await new Promise((resolve) => setTimeout(resolve, 2200));
+    fs.rmSync(path.join(__dirname, `session_${removed.id}`), { recursive: true, force: true });
+    const updated = accounts.filter((account) => account.id !== removed.id);
+    saveAccounts(updated);
+    console.log(`Akun "${removed.id}" dihapus dari daftar dan sesi lokal. Permintaan logout dikirim.`);
+    console.log('Pastikan perangkat sudah terputus di WhatsApp > Perangkat tertaut.');
+    return updated;
+  } catch (err) { console.error('Gagal menghapus akun:', err.message); return accounts; }
 }
 
 async function saveCommands(commands) {
