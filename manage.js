@@ -177,85 +177,125 @@ async function saveCommands(commands) {
   fs.writeFileSync(configPath, updated, 'utf8');
 }
 
-async function commandMenu() {
-  for (;;) {
-    console.log('\n=== MENU BOT BERJALAN ===');
-    console.log('1. Ganti semua command');
-    console.log('2. Tambah command baru');
-    console.log('3. Kelola akun (tambah/edit/hapus)');
-    console.log('4. Hentikan bot dan kembali ke menu utama');
-    const choice = (await ask('Pilih (1-4): ')).trim();
-    const config = require('./config');
-
-    if (choice === '1' || choice === '2') {
-      const answer = await ask(choice === '1'
-        ? 'Masukkan daftar command dipisahkan koma (contoh: vv, apa coba): '
-        : 'Masukkan command yang ingin ditambahkan (contoh: apa coba): ');
-      const items = answer.split(',').map((item) => item.trim().replace(/\\s+/g, ' ').toLowerCase())
-        .filter((item) => /^[a-zA-Z0-9_-]+(?: [a-zA-Z0-9_-]+)*$/.test(item));
-      if (!items.length) { console.log('Command tidak valid; tidak ada perubahan.'); continue; }
-      const commands = choice === '1' ? [...new Set(items)] : [...new Set([...(config.commands || []), ...items])];
-      try {
-        await saveCommands(commands);
-        console.log('✅ Command tersimpan: ' + commands.join(', '));
-        console.log('Perubahan dipakai bot yang berjalan pada pesan berikutnya.');
-      } catch (err) { console.log('Gagal menyimpan command: ' + err.message); }
-    } else if (choice === '3') {
-      console.log('Hentikan bot dulu (opsi 4), lalu pilih tambah/edit/hapus akun di menu utama.');
-    } else if (choice === '4') {
-      return;
-    } else {
-      console.log('Pilihan tidak valid.');
-    }
+async function editCommands() {
+  const configPath = path.join(__dirname, 'config.js');
+  const config = require('./config');
+  console.log('\nCommand aktif: ' + (config.commands || []).join(', '));
+  console.log('1. Ganti semua command');
+  console.log('2. Tambah command');
+  console.log('3. Kembali');
+  const choice = (await ask('Pilih (1-3): ')).trim();
+  if (choice === '3' || !choice) return;
+  if (choice !== '1' && choice !== '2') {
+    console.log('Pilihan tidak valid.');
+    return;
+  }
+  const answer = await ask(choice === '1'
+    ? 'Daftar command, pisahkan dengan koma (contoh: vv, apa coba): '
+    : 'Command baru (contoh: apa coba): ');
+  const items = answer.split(',').map((item) => item.trim().replace(/\s+/g, ' ').toLowerCase())
+    .filter((item) => /^[a-zA-Z0-9_-]+(?: [a-zA-Z0-9_-]+)*$/.test(item));
+  if (!items.length) {
+    console.log('Command tidak valid; tidak ada perubahan.');
+    return;
+  }
+  const commands = choice === '1'
+    ? [...new Set(items)]
+    : [...new Set([...(config.commands || []), ...items])];
+  try {
+    await saveCommands(commands);
+    const resolved = require.resolve('./config');
+    delete require.cache[resolved];
+    console.log('Command tersimpan: ' + commands.join(', '));
+    console.log('Command baru aktif pada pesan berikutnya.');
+  } catch (err) {
+    console.log('Gagal menyimpan command: ' + err.message);
   }
 }
 
 async function runAll(accounts) {
   if (accounts.length === 0) {
-    console.log('Belum ada akun. Tambah dulu lewat menu utama.');
+    console.log('Belum ada akun. Tambahkan akun terlebih dahulu.');
     return;
   }
-  console.log(`\\n🚀 Menjalankan ${accounts.length} akun: ${accounts.map((a) => a.id).join(', ')}`);
-  console.log('(Bot berjalan di latar proses ini. Pilih menu untuk mengubah command atau menghentikan bot.)');
+  console.log('\nMenjalankan ' + accounts.length + ' akun: ' + accounts.map((a) => a.id).join(', '));
+  console.log('Menu ini tetap tersedia saat bot berjalan.');
   const stopFns = accounts.map((a) => startAccount(a));
-  for (;;) {
-    await commandMenu();
-    console.log('Menghentikan akun yang dijalankan...');
-    stopFns.forEach((stop) => stop());
-    require('./multi-start').stopAllRunning();
-    await new Promise((resolve) => setTimeout(resolve, 1200));
-    return;
+  let stop = false;
+  while (!stop) {
+    console.log('\n=== BOT BERJALAN ===');
+    console.log('1. Ganti semua command');
+    console.log('2. Tambah command baru');
+    console.log('3. Hentikan bot dan kembali ke menu akun');
+    const choice = (await ask('Pilih (1-3): ')).trim();
+    if (choice === '1') {
+      const config = require('./config');
+      const answer = await ask('Daftar command dipisahkan koma (contoh: vv, apa coba): ');
+      const items = answer.split(',').map((item) => item.trim().replace(/\s+/g, ' ').toLowerCase())
+        .filter((item) => /^[a-zA-Z0-9_-]+(?: [a-zA-Z0-9_-]+)*$/.test(item));
+      if (!items.length) { console.log('Command tidak valid; tidak ada perubahan.'); continue; }
+      try {
+        await saveCommands([...new Set(items)]);
+        console.log('Command tersimpan: ' + [...new Set(items)].join(', '));
+      } catch (err) { console.log('Gagal menyimpan command: ' + err.message); }
+    } else if (choice === '2') {
+      const config = require('./config');
+      const answer = await ask('Command baru (contoh: apa coba): ');
+      const item = answer.trim().replace(/\s+/g, ' ').toLowerCase();
+      if (!/^[a-zA-Z0-9_-]+(?: [a-zA-Z0-9_-]+)*$/.test(item)) {
+        console.log('Command tidak valid.');
+        continue;
+      }
+      try {
+        const commands = [...new Set([...(config.commands || []), item])];
+        await saveCommands(commands);
+        console.log('Command ditambahkan: ' + item);
+      } catch (err) { console.log('Gagal menyimpan command: ' + err.message); }
+    } else if (choice === '3') {
+      stop = true;
+    } else {
+      console.log('Pilihan tidak valid.');
+    }
   }
+  console.log('Menghentikan semua akun...');
+  stopFns.forEach((fn) => fn());
+  require('./multi-start').stopAllRunning();
+  await new Promise((resolve) => setTimeout(resolve, 1200));
 }
 
 async function main() {
   let accounts = loadAccounts({ required: false });
-
   for (;;) {
-    console.log('\n=== Kelola Akun WhatsApp Bot ===');
+    console.log('\n=== MENU UTAMA BOT WHATSAPP ===');
     printAccounts(accounts);
     console.log('\n1. Tambah akun');
-    console.log('2. Edit akun (ganti nomor, prefix, forward)');
+    console.log('2. Edit akun');
     console.log('3. Hapus akun');
     console.log('4. Jalankan semua akun');
-    console.log('5. Keluar');
-    const choice = (await ask('Pilih (1-5): ')).trim();
-
-    if (choice === '1') {
-      accounts = await addAccount(accounts);
-    } else if (choice === '2') {
-      accounts = await editAccount(accounts);
-    } else if (choice === '3') {
-      accounts = await removeAccount(accounts);
-    } else if (choice === '4') {
-      await runAll(accounts);
-      return;
-    } else if (choice === '5') {
-      console.log('Sampai jumpa!');
-      rl.close();
-      return;
-    } else {
-      console.log('Pilihan tidak dikenal, ketik angka 1-5.');
+    console.log('5. Ganti/tambah command');
+    console.log('6. Keluar');
+    const choice = (await ask('Pilih (1-6): ')).trim();
+    try {
+      if (choice === '1') {
+        accounts = await addAccount(accounts);
+      } else if (choice === '2') {
+        accounts = await editAccount(accounts);
+      } else if (choice === '3') {
+        accounts = await removeAccount(accounts);
+      } else if (choice === '4') {
+        await runAll(accounts);
+        accounts = loadAccounts({ required: false });
+      } else if (choice === '5') {
+        await editCommands();
+      } else if (choice === '6') {
+        console.log('Sampai jumpa!');
+        rl.close();
+        return;
+      } else {
+        console.log('Pilihan tidak valid, ketik angka 1-6.');
+      }
+    } catch (err) {
+      console.error('Terjadi kesalahan:', err.message);
     }
   }
 }
