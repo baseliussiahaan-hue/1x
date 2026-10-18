@@ -29,6 +29,7 @@ const { loadAccounts } = require('./lib/accounts-store');
 const RESTART_DELAY_MS = 5000;
 const runningChildren = new Set();
 const accountStops = new Map();
+const accountChildren = new Map();
 
 function prefixStream(stream, label) {
   const rl = readline.createInterface({ input: stream });
@@ -71,13 +72,17 @@ function startAccount(account) {
     });
 
     runningChildren.add(child);
-    child.once('exit', () => runningChildren.delete(child));
+    accountChildren.set(account.id, child);
+    child.once('exit', () => {
+      runningChildren.delete(child);
+      if (accountChildren.get(account.id) === child) accountChildren.delete(account.id);
+    });
   };
 
   launch();
   const stop = () => {
     shuttingDown = true;
-    const child = [...runningChildren].find((candidate) => candidate.env?.ACCOUNT_ID === account.id);
+    const child = accountChildren.get(account.id);
     if (child && child.connected) child.send({ type: 'logout' });
     else if (child) child.kill('SIGTERM');
   };
@@ -88,7 +93,10 @@ function startAccount(account) {
 function stopAccount(id) {
   const stop = accountStops.get(id);
   if (stop) stop();
-  else for (const child of runningChildren) if (child.env?.ACCOUNT_ID === id) child.kill('SIGTERM');
+  else {
+    const child = accountChildren.get(id);
+    if (child) child.kill('SIGTERM');
+  }
 }
 
 function stopAllRunning() {
