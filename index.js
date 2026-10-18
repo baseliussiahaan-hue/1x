@@ -193,6 +193,21 @@ async function startBot() {
   });
 
   sock.ev.on('creds.update', saveCreds);
+  let logoutRequested = false;
+  const logoutAndExit = async () => {
+    if (logoutRequested) return;
+    logoutRequested = true;
+    console.log(logPrefix + 'Permintaan logout diterima; memutuskan sesi WhatsApp...');
+    try { await sock.logout(); }
+    catch (err) { console.error(logPrefix + 'Logout WhatsApp gagal: ' + err.message); }
+    finally {
+      try { fs.rmSync(sessionDir, { recursive: true, force: true }); }
+      catch (err) { console.error(logPrefix + 'Gagal menghapus folder sesi: ' + err.message); }
+      process.exit(0);
+    }
+  };
+  process.on('message', (message) => { if (message && message.type === 'logout') logoutAndExit(); });
+  process.on('SIGTERM', logoutAndExit);
 
   sock.ev.on('connection.update', ({ connection, lastDisconnect, qr }) => {
     if (qr && pairingNumber) {
