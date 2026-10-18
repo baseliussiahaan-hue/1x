@@ -172,6 +172,30 @@ async function saveCommands(commands) {
   delete require.cache[require.resolve('./config')];
 }
 
+async function editPrefix() {
+  const configPath = path.join(__dirname, 'config.js');
+  const config = require('./config');
+  console.log('\nPrefix default saat ini: ' + JSON.stringify(config.prefix));
+  console.log('Akun dengan prefix khusus tetap memakai prefix masing-masing.');
+  const answer = await ask('Masukkan prefix baru (contoh: ! atau . atau ,): ');
+  const prefix = answer.trim();
+  if (!prefix || prefix.length > 5 || /\s/.test(prefix)) {
+    console.log('Prefix tidak valid. Isi 1-5 karakter tanpa spasi.');
+    return;
+  }
+  try {
+    const source = fs.readFileSync(configPath, 'utf8');
+    const updated = source.replace(/prefix:\s*(['"])(.*?)\1/, (_, quote, oldPrefix) => 'prefix: ' + JSON.stringify(prefix));
+    if (updated === source) throw new Error('Baris prefix tidak ditemukan di config.js');
+    fs.writeFileSync(configPath, updated, 'utf8');
+    delete require.cache[require.resolve('./config')];
+    console.log('Prefix default berhasil diubah menjadi ' + JSON.stringify(prefix));
+    console.log('Perubahan berlaku pada pesan berikutnya untuk akun tanpa prefix khusus.');
+  } catch (err) {
+    console.log('Gagal menyimpan prefix: ' + err.message);
+  }
+}
+
 async function editCommands() {
   const configPath = path.join(__dirname, 'config.js');
   const config = require('./config');
@@ -221,8 +245,9 @@ async function runAll(accounts) {
     console.log('\n=== BOT BERJALAN ===');
     console.log('1. Ganti semua command');
     console.log('2. Tambah command baru');
-    console.log('3. Hentikan bot dan kembali ke menu akun');
-    const choice = (await ask('Pilih (1-3): ')).trim();
+    console.log('3. Ganti prefix default');
+    console.log('4. Hentikan bot dan kembali ke menu akun');
+    const choice = (await ask('Pilih (1-4): ')).trim();
     if (choice === '1') {
       const config = require('./config');
       const answer = await ask('Daftar command dipisahkan koma (contoh: vv, apa coba): ');
@@ -247,12 +272,14 @@ async function runAll(accounts) {
         console.log('Command ditambahkan: ' + item);
       } catch (err) { console.log('Gagal menyimpan command: ' + err.message); }
     } else if (choice === '3') {
+      await editPrefix();
+    } else if (choice === '4') {
       stop = true;
     } else {
       console.log('Pilihan tidak valid.');
     }
   }
-  console.log('Menghentikan semua akun...');
+  console.log('Menghentikan semua akun...')
   stopFns.forEach((fn) => fn());
   require('./multi-start').stopAllRunning();
   await new Promise((resolve) => setTimeout(resolve, 1200));
@@ -268,8 +295,9 @@ async function main() {
     console.log('3. Hapus akun');
     console.log('4. Jalankan semua akun');
     console.log('5. Ganti/tambah command');
-    console.log('6. Keluar');
-    const choice = (await ask('Pilih (1-6): ')).trim();
+    console.log('6. Ganti prefix default');
+    console.log('7. Keluar');
+    const choice = (await ask('Pilih (1-7): ')).trim();
     try {
       if (choice === '1') {
         accounts = await addAccount(accounts);
@@ -283,11 +311,13 @@ async function main() {
       } else if (choice === '5') {
         await editCommands();
       } else if (choice === '6') {
+        await editPrefix();
+      } else if (choice === '7') {
         console.log('Sampai jumpa!');
         rl.close();
         return;
       } else {
-        console.log('Pilihan tidak valid, ketik angka 1-6.');
+        console.log('Pilihan tidak valid, ketik angka 1-7.');
       }
     } catch (err) {
       console.error('Terjadi kesalahan:', err.message);
